@@ -1,12 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   User, Calendar, Heart, CreditCard, Shield, Bell, Settings,
   MapPin, Mail, Phone, Globe, Edit, Eye, EyeOff, Trash2, Star
 } from 'lucide-react';
 import Image from 'next/image';
+import { useGetUserProfileMutation } from '@/redux/features/auth/authApi';
+import { useAppSelector } from '@/redux/hooks';
+import { selectCurrentUser } from '@/redux/features/auth/authSlice';
 
 // Types
 interface PersonalInfo {
@@ -241,6 +244,9 @@ const TabsContent: React.FC<{ value: string; children: React.ReactNode; activeTa
 
 // Main Component
 export default function ProfileDashboard() {
+  const currentUser = useAppSelector(selectCurrentUser);
+  const [getUserProfile] = useGetUserProfileMutation();
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>(fakeUserData);
   const [bookings, setBookings] = useState<Booking[]>(fakeBookings);
   const [savedTours, setSavedTours] = useState<SavedTour[]>(fakeSavedTours);
@@ -260,6 +266,67 @@ export default function ProfileDashboard() {
     state: 'California',
     postal: '94102'
   });
+
+  useEffect(() => {
+    const emailFromState = (currentUser as { email?: string } | null)?.email;
+    if (emailFromState) {
+      setProfileEmail(emailFromState);
+      return;
+    }
+
+
+    if (typeof window !== "undefined") {
+      const storedEmail = localStorage.getItem("authEmail");
+      if (storedEmail) {
+        setProfileEmail(storedEmail);
+      }
+    }
+  }, [currentUser]);
+  
+  useEffect(() => {
+    if (!profileEmail) return;
+
+    const loadProfile = async () => {
+
+          try {
+      const response = await getUserProfile({ email: profileEmail }).unwrap();
+      console.log("getUserProfile response:", response);
+
+      if (!response?.success || !response?.data) return;
+      // ...
+    } catch (error) {
+      console.error("profile load failed:", error);
+    }
+
+      try {
+        const response = await getUserProfile({ email: profileEmail }).unwrap();
+
+        if (!response?.success || !response?.data) return;
+
+        const fetchedName = (response?.data?.name || response?.data?.authId?.name || '').trim();
+        const fetchedEmail = response?.data?.email || profileEmail;
+
+        setPersonalInfo((prev) => {
+          if (!fetchedName) {
+            return { ...prev, email: fetchedEmail };
+          }
+
+          const nameParts = fetchedName.split(/\s+/);
+
+          return {
+            ...prev,
+            firstName: nameParts[0] || prev.firstName,
+            lastName: nameParts.slice(1).join(' '),
+            email: fetchedEmail,
+          };
+        });
+      } catch {
+        // Intentionally silent to avoid interrupting profile UI.
+      }
+    };
+
+    loadProfile();
+  }, [profileEmail, getUserProfile]);
 
   // Handlers
   const handlePersonalInfoChange = (field: keyof PersonalInfo, value: string) => {

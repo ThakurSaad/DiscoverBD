@@ -83,6 +83,10 @@ export default function LoginPage() {
         })
       );
 
+      if (typeof window !== "undefined") {
+        localStorage.setItem("authEmail", formData.email);
+      }
+
       authToastSuccess(response?.message || 'Log in successful');
       router.push('/dashboard');
       

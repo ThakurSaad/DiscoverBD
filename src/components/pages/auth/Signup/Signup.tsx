@@ -71,6 +71,9 @@ export default function SignupPage() {
       if (!response?.success) {
         const message = response?.message || 'Registration failed';
         if (message.toLowerCase().includes('account active')) {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("authEmail", formData.email);
+          }
           authToastError(message);
           router.push('/auth/login');
           return;
@@ -81,6 +84,9 @@ export default function SignupPage() {
       }
 
       authToastSuccess(response?.message || 'Account created successfully');
+      if (typeof window !== "undefined") {
+        localStorage.setItem("authEmail", formData.email);
+      }
       router.push('/auth/login');
       
     } catch (error) {
